@@ -23,6 +23,8 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.healthmate.dashboard.DashboardScreen;
 import com.example.healthmate.shared.HealthViewModel;
 import com.example.healthmate.shared.ScreenUi;
+import com.example.healthmate.records.RecordsScreen;
+import com.example.healthmate.model.HealthRecord;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
@@ -43,6 +45,10 @@ public class MainActivity extends AppCompatActivity {
 
     private int currentPage = HOME;
 
+    private boolean historySelected = false;
+
+    private LocalDate selectedHistoryDate = LocalDate.now();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +62,16 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState != null) {
 
             currentPage = savedInstanceState.getInt("currentPage", HOME);
+
+            historySelected = savedInstanceState.getBoolean("historySelected", false);
+
+            String date = savedInstanceState.getString("selectedHistoryDate",
+                    LocalDate.now().toString()
+            );
+
+            selectedHistoryDate = date.isEmpty()
+                    ? null
+                    : LocalDate.parse(date);
         }
 
         createApplicationLayout();
@@ -305,7 +321,7 @@ public class MainActivity extends AppCompatActivity {
 
         } else {
 
-            showRecordsPreview();
+            showRecordsScreen();
         }
     }
 
@@ -350,44 +366,75 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
+    // Display the Health Records screen
+    private void showRecordsScreen() {
 
-    // Temporary Records screen for dashboard testing
-    private void showRecordsPreview() {
+        RecordsScreen recordsScreen =
+                new RecordsScreen(this, viewModel);
 
-        LinearLayout layout = ScreenUi.column(this);
+        ScrollView page = recordsScreen.create(
+                historySelected,
+                selectedHistoryDate,
 
-        int padding = ScreenUi.dp(this, 16);
+                history -> {
 
-        layout.setPadding(padding, padding, padding, padding);
+                    historySelected = history;
 
-        layout.addView(ScreenUi.text(this, "Health Records",
-                24, ScreenUi.INK, true
-        ));
+                    renderScreen();
+                },
 
-        layout.addView(ScreenUi.text(this, "Track your progress, one day at a time",
-                14, ScreenUi.MUTED, false
-        ));
+                date -> {
 
-        if (viewModel.filterRecords(null).isEmpty()) {
+                    selectedHistoryDate = date;
+                },
 
-            MaterialButton sampleButton = ScreenUi.button(
-                            this, "Load Sample Records", true
-                    );
+                this::openAddRecord,
 
-            sampleButton.setOnClickListener(view -> viewModel.addSamples());
+                this::openEditRecord
+        );
 
-            layout.addView(sampleButton);
-
-        } else {
-
-            layout.addView(ScreenUi.text(this, viewModel.filterRecords(null).size()
-                            + " saved health records", 16, ScreenUi.INK, false
-            ));
-        }
-
-        screenContent.addView(layout);
+        screenContent.addView(
+                page,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                )
+        );
     }
 
+    // Open the Add Record form
+    private void openAddRecord(LocalDate date) {
+
+        // Prevent future records
+        if (date.isAfter(LocalDate.now())) {
+
+            Toast.makeText(this, "Cannot add records for future dates.",
+                    Toast.LENGTH_SHORT).show();
+
+            return;
+        }
+
+        // Prevent duplicate daily records
+        if (!viewModel.filterRecords(date.toString()).isEmpty()) {
+
+            Toast.makeText(this, "A record already exists for this date. "
+                            + "Please edit the existing record.", Toast.LENGTH_LONG).show();
+
+            return;
+        }
+
+        // Open Add Record form - temporary message
+        Toast.makeText(this, "Add record for " + date, Toast.LENGTH_SHORT).show();
+    }
+
+
+    // Open the Edit Record form
+    private void openEditRecord(HealthRecord record) {
+
+        Toast.makeText(this, "Edit record for " + record.getDate(),
+                Toast.LENGTH_SHORT
+        ).show();
+    }
 
     // Android system Back button
     private void configureBackButton() {
@@ -427,6 +474,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle outState) {
 
         outState.putInt("currentPage", currentPage);
+
+        outState.putBoolean(
+                "historySelected", historySelected
+        );
+
+        outState.putString(
+                "selectedHistoryDate",
+                selectedHistoryDate == null
+                        ? ""
+                        : selectedHistoryDate.toString()
+        );
 
         super.onSaveInstanceState(outState);
     }

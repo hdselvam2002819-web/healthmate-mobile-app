@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">HealthMate</string>
+    <string name="view_all_records">View all records</string>
+    <string name="show_selected_date">Show selected date</string>
 </resources>
