@@ -2,4 +2,29 @@
     <string name="app_name">HealthMate</string>
     <string name="view_all_records">View all records</string>
     <string name="show_selected_date">Show selected date</string>
+
+    <!-- Add and Edit Record form -->
+    <string name="form_add_record">Add Record</string>
+    <string name="form_edit_record">Edit Record</string>
+
+    <string name="form_add_subtitle">Record your daily health activities</string>
+    <string name="form_edit_subtitle">Update your existing health record</string>
+
+    <string name="form_date">Date</string>
+    <string name="form_steps">Steps walked</string>
+    <string name="form_calories">Calories burned (kcal)</string>
+    <string name="form_water">Water intake (ml)</string>
+
+    <string name="form_steps_hint">Enter steps</string>
+    <string name="form_calories_hint">Enter calories</string>
+    <string name="form_water_hint">Enter water intake</string>
+
+    <string name="form_save">Save</string>
+    <string name="form_update">Update</string>
+    <string name="form_cancel">Cancel</string>
+    <string name="form_saving">Saving…</string>
+
+    <string name="form_required">This field is required</string>
+    <string name="form_invalid_number">Enter a valid non-negative whole number</string>
+    <string name="form_future_date">Cannot add records for future dates.</string>
 </resources>

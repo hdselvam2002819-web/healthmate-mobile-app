@@ -10,6 +10,8 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
@@ -25,10 +27,13 @@ import com.example.healthmate.shared.HealthViewModel;
 import com.example.healthmate.shared.ScreenUi;
 import com.example.healthmate.records.RecordsScreen;
 import com.example.healthmate.model.HealthRecord;
+import com.example.healthmate.records.RecordFormScreen;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.navigation.NavigationBarView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 
 import java.time.LocalDate;
 
@@ -48,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean historySelected = false;
 
     private LocalDate selectedHistoryDate = LocalDate.now();
+
+    private RecordFormScreen recordForm;
 
 
     @Override
@@ -76,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
 
         createApplicationLayout();
 
+        restoreRecordForm(savedInstanceState);
+
         observeData();
 
         configureBackButton();
@@ -91,17 +100,34 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(root);
 
-        // Keep content clear of Android system bars
         ViewCompat.setOnApplyWindowInsetsListener(
                 root, (view, insets) -> {
 
-                    Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                    Insets bars = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
                                     | WindowInsetsCompat.Type.displayCutout()
                     );
 
-                    Insets keyboard = insets.getInsets(WindowInsetsCompat.Type.ime());
+                    Insets keyboard = insets.getInsets(
+                            WindowInsetsCompat.Type.ime()
+                    );
 
-                    view.setPadding(bars.left, bars.top, bars.right,
+                    boolean keyboardVisible = insets.isVisible(
+                            WindowInsetsCompat.Type.ime()
+                    );
+
+                    // Hide bottom navigation while typing
+                    if (navigation != null) {
+
+                        navigation.setVisibility(
+                                keyboardVisible
+                                        ? View.GONE
+                                        : View.VISIBLE
+                        );
+                    }
+
+                    view.setPadding(
+                            bars.left, bars.top, bars.right,
                             Math.max(bars.bottom, keyboard.bottom)
                     );
 
@@ -160,8 +186,7 @@ public class MainActivity extends AppCompatActivity {
 
         logo.setImageResource(R.drawable.ic_health);
 
-        header.addView(logo, new LinearLayout.LayoutParams(
-                        ScreenUi.dp(this, 36),
+        header.addView(logo, new LinearLayout.LayoutParams(ScreenUi.dp(this, 36),
                         ScreenUi.dp(this, 36)
                 )
         );
@@ -177,13 +202,9 @@ public class MainActivity extends AppCompatActivity {
 
         navigation.setMinimumHeight(0);
 
-        navigation.setItemPaddingTop(
-                ScreenUi.dp(this, 10)
-        );
+        navigation.setItemPaddingTop(ScreenUi.dp(this, 10));
 
-        navigation.setItemPaddingBottom(
-                ScreenUi.dp(this, 2)
-        );
+        navigation.setItemPaddingBottom(ScreenUi.dp(this, 2));
 
         navigation.setBackgroundColor(ScreenUi.BAR_GREEN);
 
@@ -210,13 +231,48 @@ public class MainActivity extends AppCompatActivity {
 
         navigation.setItemTextColor(colours);
 
-        navigation.setItemActiveIndicatorColor(
-                ColorStateList.valueOf(0xFFE7F4EB)
-        );
+        navigation.setItemActiveIndicatorColor(ColorStateList.valueOf(0xFFE7F4EB));
 
         navigation.setOnItemSelectedListener(item -> {
 
-            currentPage = item.getItemId();
+            int requestedPage = item.getItemId();
+
+            // Protect unfinished record forms
+            if (recordForm != null) {
+
+                if (viewModel.isBusy()) {
+                    return false;
+                }
+
+                if (requestedPage == HOME) {
+
+                    if (recordForm.hasUnsavedChanges()) {
+
+                        confirmDiscardChanges(() -> {
+
+                            hideFormKeyboard();
+
+                            recordForm = null;
+
+                            navigation.setSelectedItemId(HOME);
+                        });
+
+                        return false;
+                    }
+
+                    hideFormKeyboard();
+
+                    recordForm = null;
+
+                } else {
+
+                    return false;
+                }
+            }
+
+            currentPage = requestedPage;
+
+            screenContent.removeAllViews();
 
             renderScreen();
 
@@ -226,28 +282,43 @@ public class MainActivity extends AppCompatActivity {
         return navigation;
     }
 
-
-    // Observe changes in application data
+    // Observe changes from the ViewModel
     private void observeData() {
 
+        // Observe health records
         viewModel.getRecords().observe(this, records -> {
 
-            if (!viewModel.isBusy()) {
+            if (recordForm == null && !viewModel.isBusy()) {
 
                 renderScreen();
             }
         });
 
-        viewModel.getBusy().observe(this, busy -> renderScreen());
+        // Observe loading and saving state
+        viewModel.getBusy().observe(this, busy -> {
 
+            boolean loading = Boolean.TRUE.equals(busy);
+
+            if (recordForm != null) {
+
+                recordForm.setBusy(loading);
+
+            } else {
+
+                renderScreen();
+            }
+        });
+
+        // Observe water goal changes
         viewModel.getWaterGoal().observe(this, goal -> {
 
-            if (!viewModel.isBusy()) {
+            if (recordForm == null && !viewModel.isBusy()) {
 
                 renderScreen();
             }
         });
 
+        // Display success or error messages
         viewModel.getMessage().observe(this, message -> {
 
             if (message != null) {
@@ -257,11 +328,40 @@ public class MainActivity extends AppCompatActivity {
                 viewModel.clearMessage();
             }
         });
+
+        // Observe successful record saves
+        viewModel.getSaved().observe(this, saved -> {
+
+            if (Boolean.TRUE.equals(saved)) {
+
+                viewModel.clearSaved();
+
+                if (recordForm != null) {
+
+                    LocalDate savedDate = recordForm.getSelectedDate();
+
+                    // Display the newly saved record
+                    if (historySelected || !savedDate.equals(LocalDate.now())) {
+
+                        historySelected = true;
+
+                        selectedHistoryDate = savedDate;
+                    }
+
+                    closeRecordForm();
+                }
+            }
+        });
     }
 
 
     // Display the currently selected screen
     private void renderScreen() {
+
+        // Preserve the form while the user is editing
+        if (recordForm != null) {
+            return;
+        }
 
         if (screenContent == null) {
 
@@ -303,8 +403,7 @@ public class MainActivity extends AppCompatActivity {
                 waterGoal = 2000;
             }
 
-            ScrollView page = dashboard.create(
-                    viewModel.getSummary(today, today),
+            ScrollView page = dashboard.create(viewModel.getSummary(today, today),
                     viewModel.getSummary(today.minusDays(6), today), waterGoal,
                     viewModel::saveWaterGoal
             );
@@ -369,12 +468,9 @@ public class MainActivity extends AppCompatActivity {
     // Display the Health Records screen
     private void showRecordsScreen() {
 
-        RecordsScreen recordsScreen =
-                new RecordsScreen(this, viewModel);
+        RecordsScreen recordsScreen = new RecordsScreen(this, viewModel);
 
-        ScrollView page = recordsScreen.create(
-                historySelected,
-                selectedHistoryDate,
+        ScrollView page = recordsScreen.create(historySelected, selectedHistoryDate,
 
                 history -> {
 
@@ -405,11 +501,15 @@ public class MainActivity extends AppCompatActivity {
     // Open the Add Record form
     private void openAddRecord(LocalDate date) {
 
+        if (viewModel.isBusy()) {
+            return;
+        }
+
         // Prevent future records
         if (date.isAfter(LocalDate.now())) {
 
-            Toast.makeText(this, "Cannot add records for future dates.",
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,
+                    "Cannot add records for future dates.", Toast.LENGTH_SHORT).show();
 
             return;
         }
@@ -417,42 +517,143 @@ public class MainActivity extends AppCompatActivity {
         // Prevent duplicate daily records
         if (!viewModel.filterRecords(date.toString()).isEmpty()) {
 
-            Toast.makeText(this, "A record already exists for this date. "
+            Toast.makeText(this,
+                    "A record already exists for this date. "
                             + "Please edit the existing record.", Toast.LENGTH_LONG).show();
 
             return;
         }
 
-        // Open Add Record form - temporary message
-        Toast.makeText(this, "Add record for " + date, Toast.LENGTH_SHORT).show();
-    }
+        viewModel.clearSaved();
 
+        showRecordForm(date, null, null);
+    }
 
     // Open the Edit Record form
     private void openEditRecord(HealthRecord record) {
 
-        Toast.makeText(this, "Edit record for " + record.getDate(),
-                Toast.LENGTH_SHORT
-        ).show();
+        if (viewModel.isBusy()) {
+            return;
+        }
+
+        viewModel.clearSaved();
+
+        LocalDate date = LocalDate.parse(record.getDate());
+
+        showRecordForm(date, record, null);
     }
 
-    // Android system Back button
+    // Display the shared Add or Edit Record form
+    private void showRecordForm(LocalDate date, HealthRecord record, Bundle draft) {
+
+        recordForm = new RecordFormScreen(this, date, record);
+
+        ScrollView page = recordForm.create(viewModel::saveRecord, this::requestCloseForm);
+
+        if (draft != null) {
+            recordForm.restoreDraft(draft);
+        }
+
+        screenContent.removeAllViews();
+
+        screenContent.addView(
+                page,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                )
+        );
+
+        recordForm.setBusy(viewModel.isBusy());
+    }
+
+    // Request to leave the record form
+    private void requestCloseForm() {
+
+        if (recordForm == null || viewModel.isBusy()) {
+            return;
+        }
+
+        if (recordForm.hasUnsavedChanges()) {
+
+            confirmDiscardChanges(this::closeRecordForm);
+
+        } else {
+
+            closeRecordForm();
+        }
+    }
+
+    // Confirm before discarding unfinished changes
+    private void confirmDiscardChanges(Runnable onDiscard) {
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Discard changes?")
+                .setMessage("Your unsaved changes will be lost.")
+                .setNegativeButton("Keep editing", null)
+                .setPositiveButton("Discard", (dialog, which) -> onDiscard.run())
+                .show();
+    }
+
+    // Return to the Records screen
+    private void closeRecordForm() {
+
+        hideFormKeyboard();
+
+        recordForm = null;
+
+        screenContent.removeAllViews();
+
+        renderScreen();
+    }
+
+    // Hide the keyboard when leaving the form
+    private void hideFormKeyboard() {
+
+        View focusedView = getCurrentFocus();
+
+        if (focusedView != null) {
+
+            InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+
+            if (keyboard != null) {
+
+                keyboard.hideSoftInputFromWindow(focusedView.getWindowToken(), 0);
+            }
+
+            focusedView.clearFocus();
+        }
+    }
+
+    // Handle Android system Back navigation
     private void configureBackButton() {
 
-        getOnBackPressedDispatcher().addCallback(this,
+        getOnBackPressedDispatcher().addCallback(
+                this,
+
                 new OnBackPressedCallback(true) {
 
                     @Override
                     public void handleOnBackPressed() {
 
+                        // Return from Add or Edit form
+                        if (recordForm != null) {
+
+                            requestCloseForm();
+
+                            return;
+                        }
+
+                        // Return from Records to Home
                         if (currentPage == RECORDS) {
 
                             navigation.setSelectedItemId(HOME);
 
-                        } else {
-
-                            finish();
+                            return;
                         }
+
+                        // Close the application from Home
+                        finish();
                     }
                 }
         );
@@ -465,6 +666,10 @@ public class MainActivity extends AppCompatActivity {
 
         super.onResume();
 
+        if (recordForm != null) {
+            return;
+        }
+
         renderScreen();
     }
 
@@ -475,17 +680,53 @@ public class MainActivity extends AppCompatActivity {
 
         outState.putInt("currentPage", currentPage);
 
-        outState.putBoolean(
-                "historySelected", historySelected
-        );
+        outState.putBoolean("historySelected", historySelected);
 
-        outState.putString(
-                "selectedHistoryDate",
+        outState.putString("selectedHistoryDate",
                 selectedHistoryDate == null
                         ? ""
                         : selectedHistoryDate.toString()
         );
 
+        // Preserve unfinished form input
+        if (recordForm != null) {
+
+            outState.putBundle("recordDraft", recordForm.saveDraft());
+        }
+
         super.onSaveInstanceState(outState);
+    }
+
+    // Restore an unfinished Add or Edit form
+    private void restoreRecordForm(Bundle savedState) {
+
+        if (savedState == null) {
+            return;
+        }
+
+        Bundle draft = savedState.getBundle("recordDraft");
+
+        if (draft == null) {
+            return;
+        }
+
+        LocalDate initialDate = LocalDate.parse(
+                draft.getString("initialDate", LocalDate.now().toString())
+        );
+
+        long recordId = draft.getLong("recordId", 0);
+
+        HealthRecord originalRecord = null;
+
+        if (recordId != 0) {
+
+            originalRecord = new HealthRecord(recordId, initialDate.toString(),
+                    draft.getInt("originalSteps"),
+                    draft.getInt("originalCalories"),
+                    draft.getInt("originalWater")
+            );
+        }
+
+        showRecordForm(initialDate, originalRecord, draft);
     }
 }

@@ -160,6 +160,21 @@ public class HealthViewModel extends AndroidViewModel {
             return;
         }
 
+        // Prevent duplicate records for the same date
+        for (HealthRecord savedRecord :
+                filterRecords(record.getDate())) {
+
+            if (savedRecord.getId() != record.getId()) {
+
+                message.setValue(
+                        "A record already exists for this date. "
+                                + "Please select another date."
+                );
+
+                return;
+            }
+        }
+
         perform(() -> {
 
             if (record.getId() == 0) {
