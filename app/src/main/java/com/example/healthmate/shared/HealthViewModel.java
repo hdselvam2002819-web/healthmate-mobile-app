@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.example.healthmate.data.DatabaseHelper;
 import com.example.healthmate.model.HealthRecord;
 import com.example.healthmate.model.HealthSummary;
+import com.example.healthmate.data.WaterGoalPreferences;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -23,6 +24,10 @@ import java.util.concurrent.Executors;
 public class HealthViewModel extends AndroidViewModel {
 
     private final DatabaseHelper database;
+
+    private final WaterGoalPreferences waterGoalPreferences;
+
+    private final MutableLiveData<Integer> waterGoal = new MutableLiveData<>();
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
 
@@ -42,6 +47,10 @@ public class HealthViewModel extends AndroidViewModel {
 
         database = new DatabaseHelper(application);
 
+        waterGoalPreferences = new WaterGoalPreferences(application);
+
+        waterGoal.setValue(waterGoalPreferences.getGoal());
+
         reload();
     }
 
@@ -59,6 +68,30 @@ public class HealthViewModel extends AndroidViewModel {
 
     public LiveData<Boolean> getSaved() {
         return saved;
+    }
+
+    // Retrieve the current daily water goal
+    public LiveData<Integer> getWaterGoal() {
+
+        return waterGoal;
+    }
+
+
+    // Update the daily water goal
+    public void saveWaterGoal(int goal) {
+
+        if (goal <= 0) {
+
+            message.setValue("Enter a valid water goal.");
+
+            return;
+        }
+
+        waterGoalPreferences.saveGoal(goal);
+
+        waterGoal.setValue(goal);
+
+        message.setValue("Water goal updated");
     }
 
     public void clearMessage() {

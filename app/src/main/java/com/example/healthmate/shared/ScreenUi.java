@@ -15,6 +15,7 @@ public class ScreenUi {
 
     // Application colours
     public static final int PRIMARY = Color.parseColor("#146D5A");
+    public static final int BAR_GREEN = Color.parseColor("#B7DCC4");
     public static final int BACKGROUND = Color.parseColor("#F3F7F6");
     public static final int WHITE = Color.WHITE;
 
@@ -98,7 +99,7 @@ public class ScreenUi {
 
         card.setPadding(padding, padding, padding, padding);
 
-        card.setElevation(dp(context, 2));
+        card.setElevation(dp(context, 5));
 
         return card;
     }
