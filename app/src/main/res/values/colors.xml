@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- HealthMate application colours -->
+    <color name="primary">#146D5A</color>
+    <color name="background">#F3F7F6</color>
+    <color name="text_primary">#173B33</color>
+    <color name="text_secondary">#53665F</color>
+
+    <!-- Health activity colours -->
+    <color name="steps_green">#21845B</color>
+    <color name="calories_red">#B63838</color>
+    <color name="water_blue">#236AB8</color>
+
 </resources>
