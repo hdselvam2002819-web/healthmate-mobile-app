@@ -109,9 +109,7 @@ public class DatabaseHelperTest {
     @Test
     public void testDataPersistence() {
 
-        database.addRecord(
-                new HealthRecord(0, today, 5000, 250, 1500)
-        );
+        database.addRecord(new HealthRecord(0, today, 5000, 250, 1500));
 
         database.close();
 
@@ -125,8 +123,6 @@ public class DatabaseHelperTest {
     @Test(expected = SQLiteConstraintException.class)
     public void testNegativeValue() {
 
-        database.addRecord(
-                new HealthRecord(0, today, -100, 250, 1500)
-        );
+        database.addRecord(new HealthRecord(0, today, -100, 250, 1500));
     }
 }

@@ -38,8 +38,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase db,
-                          int oldVersion, int newVersion) {
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
         throw new SQLiteException(
                 "Database migration not implemented"
@@ -81,24 +80,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             while (cursor.moveToNext()) {
 
-                long id = cursor.getLong(
-                        cursor.getColumnIndexOrThrow("id"));
+                long id = cursor.getLong(cursor.getColumnIndexOrThrow("id"));
 
-                String date = cursor.getString(
-                        cursor.getColumnIndexOrThrow("date"));
+                String date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
 
-                int steps = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("steps"));
+                int steps = cursor.getInt(cursor.getColumnIndexOrThrow("steps"));
 
-                int calories = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("calories"));
+                int calories = cursor.getInt(cursor.getColumnIndexOrThrow("calories"));
 
-                int water = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("water"));
+                int water = cursor.getInt(cursor.getColumnIndexOrThrow("water"));
 
-                records.add(new HealthRecord(
-                        id, date, steps, calories, water
-                ));
+                records.add(new HealthRecord(id, date, steps, calories, water));
             }
         }
 
@@ -110,10 +102,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         SQLiteDatabase db = getWritableDatabase();
 
-        return db.update(
-                TABLE_NAME,
-                getValues(record),
-                "id = ?",
+        return db.update(TABLE_NAME, getValues(record), "id = ?",
                 new String[]{String.valueOf(record.getId())}
         );
     }
@@ -123,10 +112,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         SQLiteDatabase db = getWritableDatabase();
 
-        return db.delete(
-                TABLE_NAME,
-                "id = ?",
-                new String[]{String.valueOf(id)}
+        return db.delete(TABLE_NAME, "id = ?", new String[]{String.valueOf(id)}
         );
     }
 
@@ -139,25 +125,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         try {
             if (!getAllRecords().isEmpty()) {
-                throw new IllegalStateException(
-                        "Sample records require an empty database."
-                );
+                throw new IllegalStateException("Sample records require an empty database.");
             }
 
             LocalDate today = LocalDate.now();
 
-            addRecord(new HealthRecord(
-                    0, today.toString(),
-                    4500, 230, 900
-            ));
+            addRecord(new HealthRecord(0, today.toString(), 4500, 230, 900));
 
-            addRecord(new HealthRecord(
-                    0, today.minusDays(1).toString(),
+            addRecord(new HealthRecord(0, today.minusDays(1).toString(),
                     6200, 310, 1600
             ));
 
-            addRecord(new HealthRecord(
-                    0, today.minusDays(2).toString(),
+            addRecord(new HealthRecord(0, today.minusDays(2).toString(),
                     7000, 350, 1800
             ));
 
