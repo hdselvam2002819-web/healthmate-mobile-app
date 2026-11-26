@@ -13,9 +13,17 @@ public class WaterGoalPreferences {
 
     private final SharedPreferences preferences;
 
+    // Use the actual application preferences
     public WaterGoalPreferences(Context context) {
 
-        preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        this(context, PREFERENCES_NAME);
+    }
+
+
+    // Allow a separate preferences file for testing
+    WaterGoalPreferences(Context context, String preferencesName) {
+
+        preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE);
     }
 
     // Read the user's daily water goal

@@ -2,71 +2,81 @@ package com.example.healthmate.data;
 
 import android.content.Context;
 
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static org.junit.Assert.*;
+import java.util.UUID;
+
+import static org.junit.Assert.assertEquals;
 
 @RunWith(AndroidJUnit4.class)
 public class WaterGoalPreferencesTest {
 
     private Context context;
+
+    private String testPreferencesName;
+
     private WaterGoalPreferences preferences;
+
 
     @Before
     public void setUp() {
 
-        context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        context = ApplicationProvider.getApplicationContext();
 
-        clearPreferences();
+        testPreferencesName = "healthmate_test_" + UUID.randomUUID();
 
-        preferences = new WaterGoalPreferences(context);
+        preferences = new WaterGoalPreferences(context, testPreferencesName);
     }
+
 
     @After
     public void tearDown() {
 
-        clearPreferences();
+        context.deleteSharedPreferences(testPreferencesName);
     }
 
-    private void clearPreferences() {
 
-        context.getSharedPreferences("healthmate_preferences",
-                Context.MODE_PRIVATE
-        ).edit().clear().commit();
-    }
-
+    // Check the default water goal
     @Test
-    public void testDefaultGoal() {
+    public void defaultWaterGoalIs2000() {
 
         assertEquals(2000, preferences.getGoal());
     }
 
+
+    // Check that the goal can be customised
     @Test
-    public void testSaveGoal() {
+    public void canSaveCustomWaterGoal() {
 
         preferences.saveGoal(2500);
 
         assertEquals(2500, preferences.getGoal());
     }
 
+
+    // Check that the saved goal is retained
     @Test
-    public void testGoalPersistence() {
+    public void waterGoalIsRetained() {
 
-        preferences.saveGoal(1800);
+        preferences.saveGoal(3000);
 
-        WaterGoalPreferences newPreferences = new WaterGoalPreferences(context);
+        WaterGoalPreferences reopenedPreferences = new WaterGoalPreferences(
+                        context, testPreferencesName
+                );
 
-        assertEquals(1800, newPreferences.getGoal());
+        assertEquals(3000, reopenedPreferences.getGoal());
     }
 
+
+    // Check that invalid goals are rejected
     @Test(expected = IllegalArgumentException.class)
-    public void testInvalidGoal() {
+    public void invalidWaterGoalIsRejected() {
 
         preferences.saveGoal(0);
     }
