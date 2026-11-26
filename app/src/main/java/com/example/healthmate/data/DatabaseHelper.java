@@ -18,12 +18,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "healthmate.db";
     private static final String TABLE_NAME = "health_records";
 
+    private static final int DATABASE_VERSION = 2;
+
     public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME, null, 1);
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
     DatabaseHelper(Context context, String databaseName) {
-        super(context, databaseName, null, 1);
+        super(context, databaseName, null, DATABASE_VERSION);
     }
 
     @Override
@@ -35,14 +37,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + "steps INTEGER NOT NULL CHECK(steps >= 0), "
                 + "calories INTEGER NOT NULL CHECK(calories >= 0), "
                 + "water INTEGER NOT NULL CHECK(water >= 0))");
+
+        createUniqueDateIndex(db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
-        throw new SQLiteException(
-                "Database migration not implemented"
-        );
+        if (oldVersion == 1 && newVersion == 2) {
+            createUniqueDateIndex(db);
+        } else {
+            throw new SQLiteException("Unsupported database upgrade");
+        }
+    }
+
+    // Prevent multiple health records for the same date
+    private void createUniqueDateIndex(SQLiteDatabase db) {
+
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS " + "unique_record_date ON health_records(date)");
     }
 
     private ContentValues getValues(HealthRecord record) {
